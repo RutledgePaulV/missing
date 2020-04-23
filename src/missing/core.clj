@@ -102,6 +102,16 @@
   (letfn [(f* [agg k v] (assoc! agg k (f v)))]
     (persistent! (reduce-kv f* (transient (or (empty m) {})) m))))
 
+(defn walk-keys
+  "Applies f to all keys in all maps within form."
+  [f form]
+  (walk/postwalk #(if (map? %) (map-keys f %) %) form))
+
+(defn walk-vals
+  "Applies f to all vals in all maps within form."
+  [f form]
+  (walk/postwalk #(if (map? %) (map-vals f %) %) form))
+
 (defn map-entries
   "Transform the entries of a map"
   [f m]
@@ -876,6 +886,16 @@
   "Updates the second position of each element in a seq of tuples."
   [f coll] (map-nth 1 f coll))
 
+(defn tree-seq-bf
+  "Like clojure.core/tree-seq, but breadth first."
+  [branch? children root]
+  (letfn [(walk [node]
+            (when (branch? node)
+              (lazy-seq
+                (let [children (children node)]
+                  (lazy-cat children (mapcat walk children))))))]
+    (cons root (walk root))))
+
 (defmacro keyed
   "Creates a map of keyword => value from symbol names and the values they refer to."
   [& keys]
@@ -1552,3 +1572,20 @@
                                         (merge (meta orig#)
                                                {::original orig#})))))]
        (define# (or (some-> original# meta ::original) original#)))))
+
+(defn sliding-iterate
+  "Iterate, but each new term is a function of the last N terms.
+
+    f should be a function of N arguments that computes the next term.
+    init should be a vector of length N containing the initial terms.
+  "
+  [f init]
+  (->> (iterate (fn [v] (into [(apply f v)] (butlast v))) (vec init))
+       (map #(-> % rseq first))))
+
+(defmacro returning
+  "A macro that computes value, executes body, then returns value."
+  [value & body]
+  `(let [v# ~value]
+    (do ~@body)
+    v#))

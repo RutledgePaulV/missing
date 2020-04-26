@@ -1,7 +1,8 @@
 (ns missing.core-test
   (:require [clojure.test :refer :all :exclude (testing)]
             [missing.core :refer :all]
-            [clojure.set :as sets])
+            [clojure.set :as sets]
+            [clojure.string :as strings])
   (:import (java.time Duration)
            (java.util Arrays)))
 
@@ -636,3 +637,15 @@
 (deftest tree-seq-bf-test
   (is (= [{:b :c, :d :e} [:b :c] [:d :e] :b :c :d :e]
          (walk-seq-bf {:b :c :d :e}))))
+
+(deftest backoff-seq-test
+  (is (< 1000 (reduce + (take 3 (backoff-seq))) 10000)))
+
+(deftest backoff-test
+  (is (= 3 (backoff 1 (+ 1 2)))))
+
+(deftest jaccard-coefficient-test
+  (is (= 1/2 (jaccard-coefficient #{1 2 3 4} #{1 2}))))
+
+(deftest get-jar-version-test
+  (is (not (strings/blank? (get-jar-version 'org.clojars.rutledgepaulv/missing)))))

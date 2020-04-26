@@ -329,7 +329,7 @@
   (if (thread-bound? #'*preempt*)
     (do (deliver *preempt* result)
         (throw (Error. "Execution stopped by missing.core/preempt.")))
-    result))
+    (throw (ex-info "Cannot preempt outside of a preemtable." {}))))
 
 (defmacro preemptable
   "Mark a point in the stack that can be the target of a preemption.
@@ -1215,19 +1215,20 @@
               (if (iterable? val) (strings/join "," (sort val)) (str val))))]
     (strings/replace text #"\{([^\{\}]+)\}" replacer)))
 
-(def get-jar-version
-  (memoize
-    (fn [dep]
-      (let [segment0 "META-INF/maven"
-            segment1 (or (namespace dep) (name dep))
-            segment2 (name dep)
-            segment3 "pom.properties"
-            path     (strings/join "/" [segment0 segment1 segment2 segment3])
-            props    (io/resource path)]
-        (when props
-          (with-open [stream (io/input-stream props)]
-            (let [props (doto (Properties.) (.load stream))]
-              (.getProperty props "version"))))))))
+(defmemo get-jar-version
+  "Returns the version of a jar. Dep should be the same symbol that appears
+   in leiningen/deps dependencies."
+  [dep]
+  (let [segment0 "META-INF/maven"
+        segment1 (or (namespace dep) (name dep))
+        segment2 (name dep)
+        segment3 "pom.properties"
+        path     (strings/join "/" [segment0 segment1 segment2 segment3])
+        props    (io/resource path)]
+    (when props
+      (with-open [stream (io/input-stream props)]
+        (let [props (doto (Properties.) (.load stream))]
+          (.getProperty props "version"))))))
 
 (defmacro with-timeout
   "Run body on a separate thread subject to a timeout. If reaches timeout
@@ -1251,38 +1252,6 @@
          result# (do ~@body)
          stop#   (System/nanoTime)]
      [(/ (- stop# start#) (double 1E6)) result#]))
-
-(defn polling-atom
-  "Returns an atom backed by background polling of a function. Change
-   the value of the atom to :stop in order to halt the polling process.
-   Exceptions during the invocation of the process log but will not mutate
-   the value. Supply your own reducer to combine results of successive polls."
-  ([freq f]
-   (polling-atom {} freq f))
-  ([init freq f]
-   (polling-atom #(identity %2) init freq f))
-  ([reducer init freq f]
-   (let [state  (atom init)
-         stop   (atom false)
-         millis (if (instance? Duration freq)
-                  (.toMillis ^Duration freq)
-                  freq)]
-     (add-watch state :closer #(when (= :stop %4) (reset! stop true)))
-     (doto (Thread.
-             ^Runnable
-             (fn []
-               (let
-                 [stop? @stop
-                  [time]
-                  (timing
-                    (quietly
-                      (let [[success? result] (with-timeout millis (f))]
-                        (when success? (swap! state reducer result)))))]
-                 (Thread/sleep (max (- millis time) 0))
-                 (when-not stop? (recur)))))
-       (.setDaemon true)
-       (.start))
-     state)))
 
 (defn glob-matcher
   "Returns a predicate that will match a file against a glob pattern."

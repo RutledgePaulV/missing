@@ -145,3 +145,47 @@
          (select {:a [:b :c] :c [:d]} :a)))
   (is (= {:c #{:d}, :d #{}}
          (select {:a [:b :c] :c [:d]} :c))))
+
+(deftest connected?-test
+  (is (connected? {:a [:b] :b [:a]}))
+  (is (not (connected? {:a [:b] :b [:c]}))))
+
+(deftest cyclical-test
+  (is (cyclical? {:a [:b] :b [:a]}))
+  (is (not (cyclical? {:a [:b]}))))
+
+(deftest branches-test
+  (is (= #{:a :c} (branches {:a [:b] :c [:d]}))))
+
+(deftest degree-test
+  (is (= 2 (degree {:a [:b :c]} :a))))
+
+(deftest neighbors-test
+  (is (= #{:e :a} (neighbors {:a [:b] :c [:d] :d [:e] :e [:b]} :b))))
+
+(deftest bidirectional-test
+  (is (= {:a #{:b}, :d #{:c}, :b #{:a}, :c #{:d}}
+         (bidirectional {:a [:b] :c [:d]}))))
+
+(deftest intersection-test
+  (is (= {:b #{}} (intersection {:a [:b] } {:b [:c :d]}))))
+
+(deftest empty-test
+  (is (= {:a #{} :b #{}} (empty {:a [:b]}))))
+
+(deftest expandg-test
+  (is (= {1 #{3 2}, 2 #{4 5}, 3 #{4 5}, 4 #{}, 5 #{}}
+         (expandg identity {[1] #{[2 3]} [2 3] #{[4 5]}}))))
+
+(deftest filterg-test
+  (is (= {2 #{4}, 4 #{}} (filterg even? {1 [2 3] 2 [4]}))))
+
+(deftest removeg-test
+  (is (= {1 #{3}, 3 #{}} (removeg even? {1 [2 3] 2 [4]}))))
+
+(deftest mapg-test
+  (is (= {2 #{4 3}, 5 #{7 6}, 7 #{}, 4 #{}, 6 #{}, 3 #{}}
+         (mapg inc {1 #{2 3} 4 #{5 6}}))))
+
+(deftest contractg-test
+  (is (= {3 #{}, 5 #{3}} (contractg even? {2 #{3} 5 #{2}}))))

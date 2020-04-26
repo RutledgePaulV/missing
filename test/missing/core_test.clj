@@ -620,3 +620,19 @@
 
 (deftest tuxt-test
   (is (= [1 2] ((tuxt inc dec) [0 3]))))
+
+(deftest sliding-iterate-test
+  (is (= [0 1 1 2 3 5 8 13]
+         (take 8 (sliding-iterate + [0 1])))))
+
+(deftest returning-test
+  (is (= :stuff (returning :stuff (capture :x))))
+  (is (= :x (first @invokes))))
+
+(deftest stringify-keys-test
+  (is (= {"stuff/thing" 1 "thing" 2}
+         (stringify-keys {:stuff/thing 1 :thing 2}))))
+
+(deftest tree-seq-bf-test
+  (is (= [{:b :c, :d :e} [:b :c] [:d :e] :b :c :d :e]
+         (walk-seq-bf {:b :c :d :e}))))

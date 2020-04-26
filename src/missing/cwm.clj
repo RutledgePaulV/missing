@@ -13,11 +13,15 @@
        (symbol? (first form))
        (or (contains? #{'let* 'loop* 'letfn*} (first form)))))
 
+(defn branch? [form]
+  (or (and (not (string? form)) (seqable? form))
+      (and (delay? form) (realized? form))))
+
+(defn children [form]
+  (if (delay? form) (list (force form)) (seq form)))
+
 (defn walk-seq [form]
-  (tree-seq #(or (and (not (string? %)) (seqable? %))
-                 (and (delay? %) (realized? %)))
-            #(if (delay? %) (list (force %)) (seq %))
-            form))
+  (tree-seq branch? children form))
 
 (defn walk-fun [context f form]
   (letfn [(expand [bindings impl]

@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.com/rutledgepaulv/missing.svg?branch=develop)](https://travis-ci.com/rutledgepaulv/missing)
-[![Maven metadata URL](https://img.shields.io/maven-metadata/v/https/repo1.maven.org/maven2/com/rutledgepaulv/missing/maven-metadata.xml.svg)](https://mvnrepository.com/artifact/com.rutledgepaulv/missing)
+[![Clojars Project](https://img.shields.io/clojars/v/org.clojars.rutledgepaulv/missing.svg)](https://clojars.org/org.clojars.rutledgepaulv/missing)
 [![codecov](https://codecov.io/gh/rutledgepaulv/missing/branch/develop/graph/badge.svg)](https://codecov.io/gh/rutledgepaulv/missing)
 
 ### Missing
@@ -9,7 +9,7 @@ A utility library for Clojure of functions and macros that complement clojure.co
 ### Install
 
 ```clojure
-[org.clojars.rutledgepaulv/missing "0.1.28"]
+[org.clojars.rutledgepaulv/missing "0.1.29"]
 ```
 
 ### Sample usages

@@ -113,3 +113,35 @@
       "image/jpeg" "image/*"
       "image/png" "image/*"
       "image/gif" "image/*")))
+
+(deftest intersect?-test
+  (is (intersect? {:a [:b]} {:b [:c]}))
+  (is (not (intersect? {:a [:c]} {:b [:d]}))))
+
+(deftest exclusive?-test
+  (is (exclusive? {:a [:c]} {:b [:d]}))
+  (is (not (exclusive? {:a [:b]} {:b [:c]}))))
+
+(deftest supergraph?-test
+  (is (supergraph? {:a [:b :c]} {:a [:b]}))
+  (is (not (supergraph? {:a [:b]} {:a [:b :c]})))
+  (is (supergraph? {:a [:b :c]} {:a [:b :c]})))
+
+(deftest subgraph?-test
+  (is (subgraph? {:a [:b]} {:a [:b :c]}))
+  (is (not (subgraph? {:a [:b :c]} {:a [:b]})))
+  (is (subgraph? {:a [:b]} {:a [:b]})))
+
+(deftest complete?-test
+  (is (complete? {:a [:b] :b [:a]}))
+  (is (not (complete? {:a [:b] :c [:d]}))))
+
+(deftest tree?-test
+  (is (tree? {:a [:b]}))
+  (is (not (tree? {:a [:b] :c [:d]}))))
+
+(deftest select-test
+  (is (= {:a #{:c :b}, :c #{:d}, :b #{}, :d #{}}
+         (select {:a [:b :c] :c [:d]} :a)))
+  (is (= {:c #{:d}, :d #{}}
+         (select {:a [:b :c] :c [:d]} :c))))

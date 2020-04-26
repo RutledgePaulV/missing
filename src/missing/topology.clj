@@ -232,35 +232,6 @@
   (+ (incoming-degree g n)
      (outgoing-degree g n)))
 
-(defgn depth-first
-  "Returns a depth first traversal of g beginning at start."
-  [g start]
-  (let [state (atom #{})]
-    (letfn [(branch? [x]
-              (let [[old] (swap-vals! state conj x)]
-                (if (contains? old x) false (contains? g x))))
-            (walk [node]
-              (lazy-seq
-                (cons node
-                      (when (branch? node)
-                        (mapcat walk (get g node #{}))))))]
-      (if (contains? g start)
-        (walk start)
-        ()))))
-
-(defgn connected?
-  "Can you navigate from any starting node to any other node?"
-  [g]
-  (let [all (nodes g)]
-    (loop [[x & remaining :as vertices] all]
-      (cond
-        (empty? vertices)
-        true
-        (= (set (depth-first g x)) all)
-        (recur remaining)
-        :otherwise
-        false))))
-
 (defgn topological-sort-with-grouping
   "Returns a topological sort of the adjacency map and
    partition items into sets where order is arbitrary."
@@ -321,6 +292,13 @@
     (loop [graph* g]
       (let [expanded (reduce expand-entry graph* graph*)]
         (if (= expanded graph*) expanded (recur expanded))))))
+
+(defgn connected?
+  "Can you navigate from any starting node to any other node?"
+  [g]
+  (let [all     (nodes g)
+        closure (transitive-closure g)]
+    (every? (fn [[k v]] (= (disj v k) (disj all k))) closure)))
 
 (defgn filterg
   "Only keep nodes in the graph that satisfy pred. All

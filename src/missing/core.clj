@@ -112,6 +112,18 @@
   [f form]
   (walk/postwalk #(if (map? %) (map-vals f %) %) form))
 
+(defn stringify-key
+  "Convert a keyword to a string, preserve namespaces."
+  [k]
+  (if (qualified-keyword? k)
+    (str (namespace k) "/" (name k))
+    (name k)))
+
+(defn stringify-keys
+  "Convert all keys in all maps within form into a string, preserves namespaces."
+  [form]
+  (walk-keys stringify-key form))
+
 (defn map-entries
   "Transform the entries of a map"
   [f m]
@@ -312,26 +324,23 @@
 (defn preempt
   "To be used inside of a preemptable. Call preempt within a preemptable
   to deliver a return value for the entire preemptable and abort further
-  computation by unwinding the stack with an exception."
+  computation by interrupting the thread."
   [result]
   (if (thread-bound? #'*preempt*)
-    (throw (ex-info "" {::stone (reset! *preempt* result)}))
-    (throw (ex-info "Cannot preempt code not wrapped in preemptable!" {}))))
+    (do (deliver *preempt* result)
+        (throw (Error. "Execution stopped by missing.core/preempt.")))
+    result))
 
 (defmacro preemptable
   "Mark a point in the stack that can be the target of a preemption.
-   Calling preempt within a preemtable will result in the value of
+   Calling preempt within a preemptable will result in the value of
    the preemptable being the value passed to preempt if called, otherwise
    the value of the preemptable will be the result of the complete evaluation
    of the interior."
   [& body]
-  `(binding [*preempt* (atom ::none)]
-     (try
-       (let [result# (do ~@body) stone# @*preempt*]
-         (if (= stone# ::none) result# stone#))
-       (catch Exception e#
-         (let [stone# @*preempt*]
-           (if (= stone# ::none) (throw e#) stone#))))))
+  `(let [prom# (promise)]
+     (future (deliver prom# (binding [*preempt* prom#] ~@body)))
+     (deref prom#)))
 
 (defn zip
   "Create tuples from sequences."
@@ -397,9 +406,24 @@
   "Filter a sequence to only the first elements of each partition determined by key-fn."
   [key-fn coll] (map first (partition-by key-fn coll)))
 
+(defn tree-seq-bf
+  "Like clojure.core/tree-seq, but breadth first."
+  [branch? children root]
+  (letfn [(walk [node]
+            (when (branch? node)
+              (lazy-seq
+                (let [children (children node)]
+                  (lazy-cat children (mapcat walk children))))))]
+    (cons root (walk root))))
+
 (defn walk-seq
-  "Returns a lazy sequence of all forms within a data structure."
+  "Returns a lazy depth-first sequence of all forms within a data structure."
   [form] (cwm/walk-seq form))
+
+(defn walk-seq-bf
+  "Returns a lazy breadth-first sequence of all forms within a data structure."
+  [form]
+  (tree-seq-bf cwm/branch? cwm/children form))
 
 (defn paging
   "A function that returns a lazily generating sequence
@@ -604,8 +628,17 @@
 
 (defn dfs
   "Depth first search through a form for the first form that matches pred."
-  [pred form]
-  (seek pred (walk-seq form)))
+  ([pred form]
+   (dfs pred form nil))
+  ([pred form default]
+   (seek pred (walk-seq form) default)))
+
+(defn bfs
+  "Breadth first search through a form for the first form that matches pred."
+  ([pred form]
+   (bfs pred form nil))
+  ([pred form default]
+   (seek pred (walk-seq-bf form) default)))
 
 (defn indexed
   "Creates a [index item] seq of tuples."
@@ -885,16 +918,6 @@
 (defn map2
   "Updates the second position of each element in a seq of tuples."
   [f coll] (map-nth 1 f coll))
-
-(defn tree-seq-bf
-  "Like clojure.core/tree-seq, but breadth first."
-  [branch? children root]
-  (letfn [(walk [node]
-            (when (branch? node)
-              (lazy-seq
-                (let [children (children node)]
-                  (lazy-cat children (mapcat walk children))))))]
-    (cons root (walk root))))
 
 (defmacro keyed
   "Creates a map of keyword => value from symbol names and the values they refer to."
@@ -1577,15 +1600,12 @@
   "Iterate, but each new term is a function of the last N terms.
 
     f should be a function of N arguments that computes the next term.
-    init should be a vector of length N containing the initial terms.
+    init should be a sequence of length N containing the first N terms.
   "
   [f init]
-  (->> (iterate (fn [v] (into [(apply f v)] (butlast v))) (vec init))
-       (map #(-> % rseq first))))
+  (map first (iterate (fn [v] (cons (apply f v) (butlast v))) (apply list init))))
 
 (defmacro returning
   "A macro that computes value, executes body, then returns value."
   [value & body]
-  `(let [v# ~value]
-    (do ~@body)
-    v#))
+  `(let [v# ~value] ~@body v#))

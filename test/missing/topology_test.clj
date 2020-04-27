@@ -168,7 +168,7 @@
          (bidirectional {:a [:b] :c [:d]}))))
 
 (deftest intersection-test
-  (is (= {:b #{}} (intersection {:a [:b] } {:b [:c :d]}))))
+  (is (= {:b #{}} (intersection {:a [:b]} {:b [:c :d]}))))
 
 (deftest empty-test
   (is (= {:a #{} :b #{}} (empty {:a [:b]}))))
@@ -189,3 +189,23 @@
 
 (deftest contractg-test
   (is (= {3 #{}, 5 #{3}} (contractg even? {2 #{3} 5 #{2}}))))
+
+(deftest sink-test
+  (is (not (sink? {:a [:b]} :a)))
+  (is (sink? {:a [:b]} :b)))
+
+(deftest source-test
+  (is (not (source? {:a [:b]} :b)))
+  (is (source? {:a [:b]} :a)))
+
+(deftest difference-test
+  (is (= {:a #{}} (difference {:a [:b]} {:b [:c]}))))
+
+(deftest symmetric-difference-test
+  (is (= {:a #{} :c #{}} (symmetric-difference {:a [:b]} {:b [:c]}))))
+
+(deftest exterior-test
+  (is (= #{:a :c} (exterior {:a [:b] :b [:c]}))))
+
+(deftest interior-test
+  (is (= #{:b} (interior {:a [:b] :b [:c]}))))

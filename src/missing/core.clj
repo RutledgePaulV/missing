@@ -79,7 +79,7 @@
     (persistent! (reduce-kv f (transient (or (empty m) {})) m))))
 
 (defn filter-entries [pred m]
-  (letfn [(f [agg k v] (if (and (pred k) (pred v)) (assoc! agg k v) agg))]
+  (letfn [(f [agg k v] (if (pred k v) (assoc! agg k v) agg))]
     (persistent! (reduce-kv f (transient (or (empty m) {})) m))))
 
 (defn remove-keys
@@ -127,7 +127,7 @@
 (defn map-entries
   "Transform the entries of a map"
   [f m]
-  (letfn [(f* [agg k v] (assoc! agg (f k) (f v)))]
+  (letfn [(f* [agg k v] (conj! agg (f k v)))]
     (persistent! (reduce-kv f* (transient (or (empty m) {})) m))))
 
 (defn keep-keys
@@ -1328,30 +1328,6 @@
   [filename]
   (println "missing.core/get-filename is deprecated. Use missing.core/basename instead.")
   (basename filename))
-
-(defn uniqueifier
-  "Returns a function that will always produce a unique name
-  for any provided name. The first time it will be the name as-is
-  and subsequent calls will append some count. You're guaranteed that
-  the range of the produced function has zero duplicates. When these
-  names are filenames the number is appended conveniently before the extension."
-  []
-  (let [seen-names
-        (volatile! #{})
-        get-modified
-        (fn [name]
-          (let [extension (or (get-extension name) "")
-                base      (basename name)
-                seen      @seen-names]
-            (->> (range)
-                 (map #(str base "(" (inc %) ")" extension))
-                 (filter #(not (contains? seen %)))
-                 (first))))]
-    (fn [name]
-      (if (contains? @seen-names name)
-        (recur (get-modified name))
-        (do (vswap! seen-names conj name)
-            name)))))
 
 (defn subsets
   "Returns all the subsets of a collection"

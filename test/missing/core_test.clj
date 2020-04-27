@@ -276,24 +276,6 @@
       (is (= (range 26) (take 26 stream)))
       (is (= 2 @counter)))))
 
-(deftest uniqueifier-test
-  (testing "Uniquifying a few names"
-    (let [uniq (uniqueifier)]
-      (is (= "stuff.pdf" (uniq "stuff.pdf")))
-      (is (= "stuff(1).pdf" (uniq "stuff.pdf")))
-      (is (= "stuff(2).pdf" (uniq "stuff.pdf")))
-      (is (= "stuff(1)(1).pdf" (uniq "stuff(1).pdf")))))
-
-  (testing "Trying weird filenames"
-    (let [uniq (uniqueifier)]
-      (is (= "stuff(1)" (uniq "stuff(1)")))
-      (is (= "cats" (uniq "cats")))
-      (is (= "stuff(1)(1)" (uniq "stuff(1)")))
-      (is (= "cats(1)" (uniq "cats")))
-      (is (= "dogs.stuff.txt.pdf" (uniq "dogs.stuff.txt.pdf")))
-      (is (= "dogs.stuff.txt(1).pdf" (uniq "dogs.stuff.txt.pdf")))
-      (is (= "dogs.stuff.txt(2).pdf" (uniq "dogs.stuff.txt.pdf"))))))
-
 (deftest glob-seq-test
   (testing "Globs against an exact dot file."
     (is (= 1 (count (glob-seq (System/getenv "PWD") ".gitignore")))))
@@ -338,7 +320,7 @@
 
 
 (deftest letd-test
-  (testing "unusued bindings are never evaluated."
+  (testing "unused bindings are never evaluated."
     (letd [a (capture 1)
            b (capture (+ a 1))]
       (is (empty? @invokes))))

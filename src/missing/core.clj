@@ -1253,6 +1253,29 @@
          stop#   (System/nanoTime)]
      [(/ (- stop# start#) (double 1E6)) result#]))
 
+(defn stringify-ident
+  "Converts a keyword / symbol into a full string
+   representation (including namespaces if qualified)."
+  [ident]
+  (cond
+    (qualified-ident? ident) (str (namespace ident) "/" (name ident))
+    (ident? ident) (name ident)
+    :otherwise ident))
+
+(defn qualify-ident
+  "Adds a namespace prefix to a given key."
+  [prefix k]
+  (cond
+    (qualified-ident? k) k
+    (keyword? k) (keyword (name prefix) (name k))
+    (symbol? k) (symbol (name prefix) (name k))
+    :otherwise k))
+
+(defn qualify-keys
+  "Adds a namespace prefix to all top level keys in m."
+  [prefix m]
+  (map-keys (partial qualify-ident prefix) m))
+
 (defn glob-matcher
   "Returns a predicate that will match a file against a glob pattern."
   ([glob]

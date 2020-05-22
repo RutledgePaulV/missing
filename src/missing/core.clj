@@ -39,7 +39,7 @@
    for arbitrary input."
   [s] (edn/read-string {:readers *data-readers* :default tagged-literal} s))
 
-(defn ^File locate-file
+(defn locate-file
   "Given a path attempts to find the best matching file.
      file:      prefix to mandate file system path
      classpath: prefix to mandate classpath
@@ -47,24 +47,25 @@
      otherwise, check classpath first, then filesystem"
   [path]
   (when-some
-    [^File f (and path
-                  (cond
-                    (strings/starts-with? path "/")
-                    (io/file path)
-                    (strings/starts-with? path "file:")
-                    (some-> path (strings/replace-first "file:" "") io/file)
-                    (strings/starts-with? path "classpath:")
-                    (some-> path (strings/replace-first "classpath:" "") io/resource io/file)
-                    :otherwise
-                    (or (locate-file (str "classpath:" path)) (locate-file (str "file:" path)))))]
-    (when (.exists f) f)))
+    [f (and path (cond
+                   (strings/starts-with? path "/")
+                   (io/file path)
+                   (strings/starts-with? path "file:")
+                   (some-> path (strings/replace-first "file:" "") io/file)
+                   (strings/starts-with? path "classpath:")
+                   (some-> path (strings/replace-first "classpath:" "") io/resource)
+                   :otherwise
+                   (or (locate-file (str "classpath:" path)) (locate-file (str "file:" path)))))]
+    (if (instance? File f)
+      (when (and (.exists f) (.canRead f)) f)
+      f)))
 
 (defn load-edn-resource
   "Load and parse an edn file from the filesystem if given an absolute path or the classpath otherwise.
    See read-edn-string for notes on tagged literals."
   [path]
   (when-some [f (locate-file path)]
-    (when (.canRead f) (read-edn-string (slurp f)))))
+    (read-edn-string (slurp f))))
 
 (defn filter-keys
   "Filter a map by a predicate on its keys"
@@ -1262,6 +1263,11 @@
     (ident? ident) (name ident)
     :otherwise ident))
 
+(defn stringify-keys
+  "Converts all map keys into strings throughout form."
+  [form]
+  (walk-keys stringify-ident form))
+
 (defn qualify-ident
   "Adds a namespace prefix to a given key."
   [prefix k]
@@ -1271,10 +1277,15 @@
     (symbol? k) (symbol (name prefix) (name k))
     :otherwise k))
 
-(defn qualify-keys
+(defn qualify-top-keys
   "Adds a namespace prefix to all top level keys in m."
   [prefix m]
   (map-keys (partial qualify-ident prefix) m))
+
+(defn qualify-keys
+  "Adds a namespace prefix to all map keys throughout form."
+  [prefix form]
+  (walk-keys (partial qualify-ident prefix) form))
 
 (defn glob-matcher
   "Returns a predicate that will match a file against a glob pattern."

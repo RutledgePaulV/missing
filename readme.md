@@ -9,7 +9,7 @@ A utility library for Clojure of functions and macros that complement clojure.co
 ### Install
 
 ```clojure
-[org.clojars.rutledgepaulv/missing "0.1.29"]
+[org.clojars.rutledgepaulv/missing "0.1.30"]
 ```
 
 ### Sample usages

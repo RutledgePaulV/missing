@@ -1,7 +1,8 @@
 (ns missing.cwm
   "Devious code-walking-macros."
   (:require [clojure.set :as sets]
-            [clojure.walk :as walk]))
+            [clojure.walk :as walk])
+  (:import (clojure.lang MapEntry)))
 
 (defn fn-form? [form]
   (and (seq? form)
@@ -69,6 +70,12 @@
       form)
     (seq? form)
     (map (fn [x] (walk-form context f x)) form)
+    (map? form)
+    (into {} (map (fn [x] (walk-form context f x))) form)
+    (vector? form)
+    (mapv (fn [x] (walk-form context f x)) form)
+    (map-entry? form)
+    (MapEntry. (walk-form context f (key form)) (walk-form context f (val form)))
     :otherwise
     (f context form)))
 

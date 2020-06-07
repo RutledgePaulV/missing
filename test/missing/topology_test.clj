@@ -209,3 +209,23 @@
 
 (deftest interior-test
   (is (= #{:b} (interior {:a [:b] :b [:c]}))))
+
+(deftest transitive-intersection-test
+  (is (= {:a #{:b :c :d} :b #{} :c #{} :d #{}}
+         (transitive-intersection
+           {:a [:b :c] :e [:f]} {:a [:d]}))))
+
+(deftest transitive-union-test
+  (is (= {:e #{:f}, :g #{}, :c #{}, :b #{}, :f #{}, :a #{:g :c :b}}
+         (transitive-union
+           {:a [:b :c] :e [:f]} {:a [:g] :k [:h]}))))
+
+(deftest transitive-difference-test
+  (is (= {:e #{:f}, :f #{}}
+         (transitive-difference
+           {:a [:b :c] :e [:f]} {:a [:d]}))))
+
+(deftest transitive-difference-test
+  (is (= {:e #{:f}, :g #{:h}, :h #{}, :f #{}}
+         (transitive-symmetric-difference
+           {:a [:b :c] :e [:f]} {:a [:d] :g [:h]}))))

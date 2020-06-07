@@ -320,6 +320,14 @@
 
 
 (deftest letd-test
+  (testing "multiple forms referring to each other are handled."
+    (letd [k (+ 1 2 3 4 5)
+           {:keys [a b c]} {:a "Test" :b k :d "Drat"}]
+      (is (= 15 b))))
+  (testing "multiple forms referring to each other are handled."
+    (letd [k (+ 1 2 3 4 5)
+           [a b] [:x k]]
+      (is (= 15 b))))
   (testing "unused bindings are never evaluated."
     (letd [a (capture 1)
            b (capture (+ a 1))]

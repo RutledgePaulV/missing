@@ -521,11 +521,6 @@
   (is (= 3 (when-some* [a 1 b 2 c (+ a b) d false] c)))
   (is (nil? (when-some* [a 1 b 2 c (+ a b) d nil] c))))
 
-(deftest once-and-only-once
-  (once (capture "1"))
-  (once (capture "1"))
-  (is (= ["1"] @invokes)))
-
 (deftest ascending-by?-test
   (let [a {:x 1 :y 4} b {:x 2 :y 3} c {:x 3 :y 2} d {:x 3 :y 1}]
     (is (ascending-by? :x [a b c d]))

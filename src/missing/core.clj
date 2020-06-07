@@ -157,55 +157,14 @@
   [m]
   (reduce (fn [m' [k v]] (update m' v (fnil conj []) k)) {} (grouping->pairs m)))
 
-(defmacro if-text
-  "bindings => binding-form test
-
-   If test is a string and contains text, evaluates then with binding-form bound to the
-   value of test, if not, yields else"
-  ([bindings then]
-   `(if-text ~bindings ~then nil))
-  ([bindings then else & oldform]
-   (#'clojure.core/assert-args
-     (vector? bindings) "a vector for its binding"
-     (nil? oldform) "1 or 2 forms after binding vector"
-     (= 2 (count bindings)) "exactly 2 forms in binding vector")
-   (let [form (bindings 0) tst (bindings 1)]
-     `(let [temp# ~tst]
-        (if (or (not (string? temp#)) (strings/blank? temp#))
-          ~else
-          (let [~form temp#]
-            ~then))))))
-
-(defmacro when-text [bindings & body]
-  `(if-text ~bindings (do ~@body)))
-
-(defmacro if-seq
-  "bindings => binding-form test
-
-   If (seq test) is non-nil evaluates then with binding-form bound to the
-   value of test, if not, yields else"
-  ([bindings then]
-   `(if-seq ~bindings ~then nil))
-  ([bindings then else & oldform]
-   (#'clojure.core/assert-args
-     (vector? bindings) "a vector for its binding"
-     (nil? oldform) "1 or 2 forms after binding vector"
-     (= 2 (count bindings)) "exactly 2 forms in binding vector")
-   (let [form (bindings 0) tst (bindings 1)]
-     `(let [temp# ~tst]
-        (if (empty? temp#)
-          ~else
-          (let [~form temp#]
-            ~then))))))
-
-(defmacro when-seq [bindings & body]
-  `(if-seq ~bindings (do ~@body)))
-
 (defmacro if-let*
   "Like clojure.core/if-let except supports multiple bindings."
   ([bindings then]
    `(if-let* ~bindings ~then nil))
   ([bindings then else]
+   (#'clojure.core/assert-args
+     (vector? bindings) "a vector for its binding"
+     (even? (count bindings)) "even number of forms in binding vector")
    (if (seq bindings)
      `(if-let [~@(take 2 bindings)]
         (if-let* [~@(drop 2 bindings)] ~then ~else)
@@ -217,6 +176,9 @@
   ([bindings then]
    `(if-some* ~bindings ~then nil))
   ([bindings then else]
+   (#'clojure.core/assert-args
+     (vector? bindings) "a vector for its binding"
+     (even? (count bindings)) "even number of forms in binding vector")
    (if (seq bindings)
      `(if-some [~@(take 2 bindings)]
         (if-some* [~@(drop 2 bindings)] ~then ~else)
@@ -232,6 +194,54 @@
   "Like clojure.core/when-some except supports multiple bindings."
   [bindings & body]
   `(if-some* ~bindings (do ~@body)))
+
+(defmacro if-text
+  "Like if-some* but takes the else branch if text is blank."
+  ([bindings then]
+   `(if-text ~bindings ~then nil))
+  ([bindings then else]
+   (#'clojure.core/assert-args
+     (vector? bindings) "a vector for its binding"
+     (even? (count bindings)) "even number of forms in binding vector")
+   `(if-some*
+      ~(->> (partition 2 bindings)
+            (mapcat (fn [[symbol# value#]]
+                      [symbol#
+                       `(let [v# ~value#]
+                          (when (and (string? v#) (not-blank? v#))
+                            v#))]))
+            (vec))
+      ~then
+      ~else)))
+
+(defmacro when-text
+  "Like if-text but there's only one branch with an implicit do"
+  [bindings & body]
+  `(if-text ~bindings (do ~@body)))
+
+(defmacro if-seq
+  "Like if-some* but takes the else branch if seq is empty."
+  ([bindings then]
+   `(if-seq ~bindings ~then nil))
+  ([bindings then else & oldform]
+   (#'clojure.core/assert-args
+     (vector? bindings) "a vector for its binding"
+     (nil? oldform) "1 or 2 forms after binding vector"
+     (= 2 (count bindings)) "exactly 2 forms in binding vector")
+   `(if-some*
+      ~(->> (partition 2 bindings)
+            (mapcat (fn [[symbol# value#]]
+                      [symbol# `(let [v# ~value#]
+                                  (when (and (seqable? v#) (seq v#))
+                                    v#))]))
+            (vec))
+      ~then
+      ~else)))
+
+(defmacro when-seq
+  "Like if-seq but there's only one branch with an implicit do"
+  [bindings & body]
+  `(if-seq ~bindings (do ~@body)))
 
 (defn assoc*
   "Like assoc, but assumes associng into nil with an integer
@@ -1543,7 +1553,7 @@
        (letfn [(define# [orig#]
                  (let [~'this orig#]
                    (with-meta (fn ~bindings ~@body)
-                              (merge (meta orig#) {::original orig#}))))]
+                     (merge (meta orig#) {::original orig#}))))]
          (fn [original#] (define# (or (some-> original# meta ::original) original#)))))
      var#))
 
@@ -1559,8 +1569,8 @@
                (.addMethod ^MultiFn multi# dispatch#
                            (let [~'this orig#]
                              (with-meta (fn ~bindings ~@body)
-                                        (merge (meta orig#)
-                                               {::original orig#})))))]
+                               (merge (meta orig#)
+                                      {::original orig#})))))]
        (define# (or (some-> original# meta ::original) original#)))))
 
 (defn sliding-iterate

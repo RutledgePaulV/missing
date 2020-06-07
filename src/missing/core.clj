@@ -162,9 +162,6 @@
   ([bindings then]
    `(if-let* ~bindings ~then nil))
   ([bindings then else]
-   (#'clojure.core/assert-args
-     (vector? bindings) "a vector for its binding"
-     (even? (count bindings)) "even number of forms in binding vector")
    (if (seq bindings)
      `(if-let [~@(take 2 bindings)]
         (if-let* [~@(drop 2 bindings)] ~then ~else)
@@ -176,9 +173,6 @@
   ([bindings then]
    `(if-some* ~bindings ~then nil))
   ([bindings then else]
-   (#'clojure.core/assert-args
-     (vector? bindings) "a vector for its binding"
-     (even? (count bindings)) "even number of forms in binding vector")
    (if (seq bindings)
      `(if-some [~@(take 2 bindings)]
         (if-some* [~@(drop 2 bindings)] ~then ~else)
@@ -200,9 +194,6 @@
   ([bindings then]
    `(if-text ~bindings ~then nil))
   ([bindings then else]
-   (#'clojure.core/assert-args
-     (vector? bindings) "a vector for its binding"
-     (even? (count bindings)) "even number of forms in binding vector")
    `(if-some*
       ~(->> (partition 2 bindings)
             (mapcat (fn [[symbol# value#]]
@@ -223,11 +214,7 @@
   "Like if-some* but takes the else branch if seq is empty."
   ([bindings then]
    `(if-seq ~bindings ~then nil))
-  ([bindings then else & oldform]
-   (#'clojure.core/assert-args
-     (vector? bindings) "a vector for its binding"
-     (nil? oldform) "1 or 2 forms after binding vector"
-     (= 2 (count bindings)) "exactly 2 forms in binding vector")
+  ([bindings then else]
    `(if-some*
       ~(->> (partition 2 bindings)
             (mapcat (fn [[symbol# value#]]

@@ -372,6 +372,33 @@
     (filterg (conj extent from) g)
     {}))
 
+(defgn transitive-intersection
+  "The intersection of g1 and g2, extended by anything transitively reachable in either graph."
+  [g1 g2]
+  (let [inter (intersection g1 g2)]
+    (union
+      (reduce-kv (fn [agg k _] (union agg (select g2 k))) {} inter)
+      (reduce-kv (fn [agg k _] (union agg (select g1 k))) {} inter))))
+
+(defgn transitive-difference
+  "Returns the subgraph of g1 that doesn't appear in the transitive intersection of g1 and g2."
+  [g1 g2]
+  (difference g1 (transitive-intersection g1 g2)))
+
+(defgn transitive-union
+  "Returns g1 unioned with the transitive intersection of g1 and g2."
+  [g1 g2]
+  (union g1 (transitive-intersection g1 g2)))
+
+(defgn transitive-symmetric-difference
+  "Returns the union of those subgraphs which appear in either g1 or g2 but do not appear in their
+   transitive intersection."
+  [g1 g2]
+  (let [transitive-inter (transitive-intersection g1 g2)]
+    (union
+      (difference g1 transitive-inter)
+      (difference g2 transitive-inter))))
+
 (defgn shortest-paths
   "Uses Floyd-Warshall to returns a map of
    {[source destination] {:distance <num> :path [source ... destination]}}

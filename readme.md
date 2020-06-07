@@ -6,12 +6,6 @@
 
 A utility library for Clojure of functions and macros that complement clojure.core.
 
-### Install
-
-```clojure
-[org.clojars.rutledgepaulv/missing "0.1.30"]
-```
-
 ### Sample usages
 
 Below are some examples of functions available in this library. For 

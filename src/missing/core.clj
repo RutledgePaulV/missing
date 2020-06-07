@@ -621,12 +621,6 @@
   ([pred coll not-found]
    (reduce (fn [nf x] (if (pred x) (reduced x) nf)) not-found coll)))
 
-(defn ^:deprecated find-first
-  "Deprecated, use missing.core/seek instead."
-  [pred coll]
-  (println "missing.core/find-first is deprecated, use missing.core/seek instead.")
-  (seek pred coll))
-
 (defn dfs
   "Depth first search through a form for the first form that matches pred."
   ([pred form]
@@ -650,12 +644,6 @@
   "Returns [index item] for the first item that matches pred."
   [pred coll]
   (seek (comp pred second) (indexed coll)))
-
-(defn ^:deprecated find-indexed
-  "Returns [index item] for the first item that matches pred."
-  [pred coll]
-  (println "missing.core/find-indexed is deprecated, use missing.core/seek-indexed instead.")
-  (seek-indexed pred coll))
 
 (defn sorted-map-by-value
   "Returns a sorted map with entries sorted by values. Supply

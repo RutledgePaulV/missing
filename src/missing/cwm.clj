@@ -76,6 +76,8 @@
     (mapv (fn [x] (walk-form context f x)) form)
     (map-entry? form)
     (MapEntry. (walk-form context f (key form)) (walk-form context f (val form)))
+    (set? form)
+    (into #{} (map (fn [x] (walk-form context f x))) form)
     :otherwise
     (f context form)))
 

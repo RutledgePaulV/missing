@@ -71,17 +71,23 @@
   "Filter a map by a predicate on its keys"
   [pred m]
   (letfn [(f [agg k v] (if (pred k) (assoc! agg k v) agg))]
-    (persistent! (reduce-kv f (transient (or (empty m) {})) m))))
+    (with-meta
+      (persistent! (reduce-kv f (transient (or (empty m) {})) m))
+      (meta m))))
 
 (defn filter-vals
   "Filter a map by a predicate on its values"
   [pred m]
   (letfn [(f [agg k v] (if (pred v) (assoc! agg k v) agg))]
-    (persistent! (reduce-kv f (transient (or (empty m) {})) m))))
+    (with-meta
+      (persistent! (reduce-kv f (transient (or (empty m) {})) m))
+      (meta m))))
 
 (defn filter-entries [pred m]
   (letfn [(f [agg k v] (if (pred k v) (assoc! agg k v) agg))]
-    (persistent! (reduce-kv f (transient (or (empty m) {})) m))))
+    (with-meta
+      (persistent! (reduce-kv f (transient (or (empty m) {})) m))
+      (meta m))))
 
 (defn remove-keys
   "Filter a map by the complement of predicate on its keys"
@@ -95,13 +101,17 @@
   "Transform the keys of a map"
   [f m]
   (letfn [(f* [agg k v] (assoc! agg (f k) v))]
-    (persistent! (reduce-kv f* (transient (or (empty m) {})) m))))
+    (with-meta
+      (persistent! (reduce-kv f* (transient (or (empty m) {})) m))
+      (meta m))))
 
 (defn map-vals
   "Transform the values of a map"
   [f m]
   (letfn [(f* [agg k v] (assoc! agg k (f v)))]
-    (persistent! (reduce-kv f* (transient (or (empty m) {})) m))))
+    (with-meta
+      (persistent! (reduce-kv f* (transient (or (empty m) {})) m))
+      (meta m))))
 
 (defn walk-keys
   "Applies f to all keys in all maps within form."
@@ -129,7 +139,9 @@
   "Transform the entries of a map"
   [f m]
   (letfn [(f* [agg k v] (conj! agg (f k v)))]
-    (persistent! (reduce-kv f* (transient (or (empty m) {})) m))))
+    (with-meta
+      (persistent! (reduce-kv f* (transient (or (empty m) {})) m))
+      (meta m))))
 
 (defn keep-keys
   "Map and only keep non-nil keys."
@@ -350,15 +362,15 @@
 
 (defn map-groups
   "Map items in groups for the groups in a map of category to group."
-  [f m] (map-vals (partial mapv f) m))
+  [f m] (map-vals #(into (empty %) (map f) %) m))
 
 (defn mapcat-groups
   "Mapcat items in groups for the groups in a map of category to group."
-  [f m] (map-vals (comp vec (partial mapcat f)) m))
+  [f m] (map-vals #(into (empty %) (mapcat f) %) m))
 
 (defn filter-groups
   "Filter items in groups for the groups in a map of category to group."
-  [f m] (map-vals (partial filterv f) m))
+  [f m] (map-vals #(into (empty %) (filter f) %) m))
 
 (defn remove-groups
   "Remove items from groups in a map of category to group."

@@ -10,15 +10,14 @@
 (def capture (fn [x] (swap! invokes conj x) x))
 (def clear! (fn [] (reset! invokes [])))
 
-(use-fixtures :each
-  (fn [tests]
-    (clear!)
-    (tests)
-    (clear!)))
+(defn fixture [tests]
+  (clear!) (tests) (clear!))
+
+(use-fixtures :each fixture)
 
 (defmacro testing [description & body]
   `(clojure.test/testing ~description
-     (do (clear!) ~@body (clear!))))
+     (fixture (fn [] ~@body))))
 
 (deftest filter-keys-test
   (let [m {1 2 3 4 6 5 8 7}]

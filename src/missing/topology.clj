@@ -12,7 +12,7 @@
   [g]
   (if (some-> g meta ::normalized)
     g
-    (letfn [(nodes [g] (apply sets/union (set (keys g)) (map set (vals g))))]
+    (letfn [(nodes [g] (into (set (keys g)) (mapcat identity) (vals g)))]
       (let [result (reduce (fn [agg next] (update agg next (fnil set #{}))) g (nodes g))]
         (vary-meta result (fnil merge {}) {::normalized true})))))
 
@@ -33,7 +33,8 @@
 
 (defgn edges
   "Get the set of edges of graph g."
-  [g] (set (mapcat (fn [[k v]] (map vector (repeat k) v)) g)))
+  [g]
+  (into #{} (mapcat (fn [e] (map vector (repeat (key e)) (val e)))) g))
 
 (defgn empty
   "Returns a graph with the same nodes as g but no edges."
@@ -41,7 +42,7 @@
 
 (defgn consumers
   "Get all nodes with inbound edges."
-  [g] (apply sets/union (vals g)))
+  [g] (into #{} (mapcat identity) (vals g)))
 
 (defgn producers
   "Get all nodes with outbound edges."
@@ -72,8 +73,10 @@
              (if (and (contains? nodes n1) (contains? nodes n2))
                (update m n1 (fnil conj #{}) n2)
                m))]
-     (let [init (into {} (map vector nodes (repeat #{})))]
-       (normalize (reduce reduction init (set edges)))))))
+     (let [init (zipmap nodes (repeat #{}))]
+       (with-meta
+         (reduce reduction init (set edges))
+         {::normalized true})))))
 
 (defgn walk?
   "Check if the given walk is valid for the graph."
@@ -291,7 +294,9 @@
             (reduce (partial expand-one k) g* vs))]
     (loop [graph* g]
       (let [expanded (reduce expand-entry graph* graph*)]
-        (if (= expanded graph*) expanded (recur expanded))))))
+        (if (= expanded graph*)
+          (with-meta expanded {::normalized true})
+          (recur expanded))))))
 
 (defgn connected?
   "Can you navigate from any starting node to any other node?"
@@ -375,10 +380,20 @@
 (defgn transitive-intersection
   "The intersection of g1 and g2, extended by anything transitively reachable in either graph."
   [g1 g2]
-  (let [inter (intersection g1 g2)]
-    (union
-      (reduce-kv (fn [agg k _] (union agg (select g2 k))) {} inter)
-      (reduce-kv (fn [agg k _] (union agg (select g1 k))) {} inter))))
+  (let [g1* (transitive-closure g1)
+        g2* (transitive-closure g2)]
+    (reduce-kv
+      (fn [agg k _]
+        (-> agg
+            (union
+              (miss/if-seq [extent (get g1* k)]
+                (filterg (conj extent k) g1)
+                {}))
+            (union
+              (miss/if-seq [extent (get g2* k)]
+                (filterg (conj extent k) g2)
+                {}))))
+      {} (intersection g1 g2))))
 
 (defgn transitive-difference
   "Returns the subgraph of g1 that doesn't appear in the transitive intersection of g1 and g2."

@@ -380,30 +380,25 @@
 (defgn transitive-intersection
   "The intersection of g1 and g2, extended by anything transitively reachable in either graph."
   [g1 g2]
-  (let [g1* (transitive-closure g1)
-        g2* (transitive-closure g2)]
+  (let [g-union (union g1 g2)
+        g-trans (transitive-closure g-union)]
     (reduce-kv
       (fn [agg k _]
-        (-> agg
-            (union
-              (miss/if-seq [extent (get g1* k)]
-                (filterg (conj extent k) g1)
-                {}))
-            (union
-              (miss/if-seq [extent (get g2* k)]
-                (filterg (conj extent k) g2)
-                {}))))
+        (union agg
+          (miss/if-seq [extent (get g-trans k)]
+            (filterg (conj extent k) g-union)
+            {})))
       {} (intersection g1 g2))))
 
-(defgn transitive-difference
-  "Returns the subgraph of g1 that doesn't appear in the transitive intersection of g1 and g2."
-  [g1 g2]
-  (difference g1 (transitive-intersection g1 g2)))
-
 (defgn transitive-union
-  "Returns g1 unioned with the transitive intersection of g1 and g2."
+  "Returns g1 extended by the transitive intersection of g1 and g2."
   [g1 g2]
   (union g1 (transitive-intersection g1 g2)))
+
+(defgn transitive-difference
+  "Returns the subgraph of g1 that isn't transitively referenced by g2."
+  [g1 g2]
+  (difference g1 (transitive-intersection g1 g2)))
 
 (defgn transitive-symmetric-difference
   "Returns the union of those subgraphs which appear in either g1 or g2 but do not appear in their

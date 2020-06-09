@@ -221,11 +221,13 @@
            {:a [:b :c] :e [:f]} {:a [:g] :k [:h]}))))
 
 (deftest transitive-difference-test
-  (is (= {:e #{:f}, :f #{}}
-         (transitive-difference
-           {:a [:b :c] :e [:f]} {:a [:d]}))))
-
-(deftest transitive-difference-test
-  (is (= {:e #{:f}, :g #{:h}, :h #{}, :f #{}}
-         (transitive-symmetric-difference
-           {:a [:b :c] :e [:f]} {:a [:d] :g [:h]}))))
+  (let [keep {:add [:+] :subtract [:-]}
+        drop {:+                          [:number]
+              :-                          [:number]
+              :number                     [:referenced-by-referenced]
+              :referenced-by-referenced   []
+              :referenced-by-unreferenced []
+              :unreferenced               [:referenced-by-unreferenced]}]
+    (is (= {:unreferenced               #{:referenced-by-unreferenced},
+            :referenced-by-unreferenced #{}}
+           (transitive-difference drop keep)))))

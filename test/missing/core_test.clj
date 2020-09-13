@@ -295,12 +295,6 @@
   (is (not (=ic "test" "tset")))
   (is (=ic "test" "test")))
 
-(deftest =select-test
-  (is (=select {:a "stuff" :b "things"} {:a "stuff" :b "things" :c "other-things"}))
-  (is (not (=select {:a "stuff" :b "things"} {:a "stuff" :b "thoughts" :c "other-things"})))
-  (is (=select {:a odd? :b even?} {:a 1 :b 2 :c "other-things"}))
-  (is (not (=select {:a odd? :b even?} {:a 2 :b 1 :c "other-things"}))))
-
 (deftest diff-by-test
   (let [a #{{:x 1 :v 1} {:x 1 :v 11} {:x 2 :v 2} {:x 3 :v 3}}
         b #{{:x 2 :v 2} {:x 3 :v 3} {:x 4 :v 4}}

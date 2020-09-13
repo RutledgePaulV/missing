@@ -14,7 +14,82 @@
            (java.nio.file FileSystems)
            (java.io File)
            (java.security MessageDigest)
-           (clojure.lang IPersistentVector LongRange Range Var MultiFn Reversible MapEntry)))
+           (clojure.lang LongRange Range Var MultiFn Reversible MapEntry)))
+
+(defn get-field
+  "Access an object field, even if private or protected."
+  [obj field]
+  (let [m (.getDeclaredField (class obj) (name field))]
+    (.setAccessible m true)
+    (.get m obj)))
+
+(defn range? [coll]
+  (or (instance? LongRange coll) (instance? Range coll)))
+
+(defn clamp
+  "Returns x if in range or returns start or end (whichever x is nearest).
+
+   Both bounds are inclusive."
+  [start end x]
+  (min (max start x) end))
+
+(defn subvec*
+  "Like clojure.core/subvec but clamped."
+  ([vec start]
+   (subvec vec (clamp 0 (count vec) start)))
+  ([vec start end]
+   (subvec vec (clamp 0 (count vec) start) (clamp 0 (count vec) end))))
+
+(defn reverse*
+  "An alternative implementation of clojure.core/reverse that
+  provides a more efficient implementation for certain types
+  of coll."
+  [coll]
+  (if (instance? Reversible coll)
+    (rseq coll)
+    (reverse coll)))
+
+(defn last*
+  [coll]
+  (if (vector? coll)
+    (peek coll)
+    (last coll)))
+
+(defn take*
+  "An alternative implementation of clojure.core/take that
+   provides a more efficient implementation for certain types
+   of coll."
+  [n coll]
+  (cond
+    (vector? coll)
+    (subvec* coll 0 n)
+    (range? coll)
+    (let [start (get-field coll :start)
+          stop  (get-field coll :end)
+          step  (get-field coll :step)
+          mid   (+ start (* n step))]
+      (range start (min mid stop) step))
+    :otherwise
+    (take n coll)))
+
+(defn drop*
+  "An alternative implementation of clojure.core/drop that
+   provides a more efficient implementation for certain types
+   of coll."
+  [n coll]
+  (cond
+    (vector? coll)
+    (subvec* coll n)
+    (range? coll)
+    (let [start (get-field coll :start)
+          stop  (get-field coll :end)
+          step  (get-field coll :step)
+          mid   (+ start (* n step))]
+      (range (min mid stop) stop step))
+    :otherwise
+    (drop n coll)))
+
+
 
 (defn uuid
   "Get a uuid as string"
@@ -250,11 +325,11 @@
   ([map key val & kvs]
    (reduce (fn [agg [k v]] (assoc* agg k v)) (assoc* map key val) (partition 2 kvs))))
 
-(defn assoc*-in
+(defn assoc-in*
   "Like assoc-in but with assoc* semantics."
   [m [k & ks] v]
   (if ks
-    (assoc* m k (assoc*-in (get m k) ks v))
+    (assoc* m k (assoc-in* (get m k) ks v))
     (assoc* m k v)))
 
 (defn fixed-point
@@ -339,7 +414,7 @@
   (if (thread-bound? #'*preempt*)
     (do (deliver *preempt* result)
         (throw (Error. "Execution stopped by missing.core/preempt.")))
-    (throw (ex-info "Cannot preempt outside of a preemtable." {}))))
+    (throw (ex-info "Cannot preempt outside of a preemptable." {}))))
 
 (defmacro preemptable
   "Mark a point in the stack that can be the target of a preemption.
@@ -930,61 +1005,11 @@
 (defn llast
   "The complement to clojure.core/ffirst."
   [coll]
-  (last (last coll)))
-
-(defn get-field
-  "Access an object field, even if private or protected."
-  [obj field]
-  (let [m (.getDeclaredField (class obj) (name field))]
-    (.setAccessible m true)
-    (.get m obj)))
-
-(defn reverse*
-  "An alternative implementation of clojure.core/reverse that
-  provides a more efficient implementation for certain types
-  of coll."
-  [coll]
-  (if (instance? Reversible coll)
-    (rseq coll)
-    (reverse coll)))
+  (last* (last* coll)))
 
 (defn reverse-map
   "Invert a map"
   [m] (into {} (map (comp vec reverse*)) m))
-
-(defn take*
-  "An alternative implementation of clojure.core/take that
-   provides a more efficient implementation for certain types
-   of coll."
-  [n coll]
-  (cond
-    (instance? IPersistentVector coll)
-    (subvec coll 0 n)
-    (or (instance? LongRange coll) (instance? Range coll))
-    (let [start (get-field coll :start)
-          stop  (get-field coll :end)
-          step  (get-field coll :step)
-          mid   (+ start (* n step))]
-      (range start (min mid stop) step))
-    :otherwise
-    (take n coll)))
-
-(defn drop*
-  "An alternative implementation of clojure.core/drop that
-   provides a more efficient implementation for certain types
-   of coll."
-  [n coll]
-  (cond
-    (instance? IPersistentVector coll)
-    (subvec coll n)
-    (or (instance? LongRange coll) (instance? Range coll))
-    (let [start (get-field coll :start)
-          stop  (get-field coll :end)
-          step  (get-field coll :step)
-          mid   (+ start (* n step))]
-      (range (min mid stop) stop step))
-    :otherwise
-    (drop n coll)))
 
 (defn split-at*
   "An alternative implementation of clojure.core/split-at that
@@ -992,6 +1017,16 @@
    of coll."
   [index coll]
   [(take* index coll) (drop* index coll)])
+
+(defn partition-all*
+  "An alternative implementation of clojure.core/partition-all that
+   provides a more efficient implementation for certain types
+   of coll."
+  [n coll]
+  (if (vector? coll)
+    (for [i (range 0 (count coll) n)]
+      (subvec* coll i (+ i n)))
+    (partition-all n coll)))
 
 (defn binary-search
   "Implements a generic binary search algorithm. Find a value in coll
@@ -1061,10 +1096,7 @@
   ([key-fn coll]
    (descending-by? key-fn compare coll))
   ([key-fn comparator coll]
-   (->> (map key-fn coll)
-        (partition 2 1)
-        (map (fn [[a b]] (comparator a b)))
-        (every? (some-fn pos? zero?)))))
+   (ascending-by? key-fn (flip comparator) coll)))
 
 (defn ascending?
   "Is coll ascending according to the supplied comparator?"
@@ -1213,7 +1245,7 @@
               (if (iterable? val) (strings/join "," (sort val)) (str val))))]
     (strings/replace text #"\{([^\{\}]+)\}" replacer)))
 
-(defmemo get-jar-version
+(defn get-jar-version
   "Returns the version of a jar. Dep should be the same symbol that appears
    in leiningen/deps dependencies."
   [dep]
@@ -1381,13 +1413,13 @@
   [m1 m2] (sets/superset? (set (seq m1)) (set (seq m2))))
 
 (defn indexcat-by
-  "Like index-by except f is allowed to return a sequence of keys
+  "Like index-by except f is expected to return a sequence of keys
   that the element should be indexed by."
   [f coll]
   (into {} (mapcat #(map map-entry (f %) (repeat %))) coll))
 
 (defn groupcat-by
-  "Like group-by except f is allowed to return a sequence of keys
+  "Like group-by except f is expected to return a sequence of keys
   that the element should be bucketed by."
   [f coll]
   (->> coll
@@ -1434,26 +1466,6 @@
        (recur s2 (first ss) (rest ss))
        (=ic s2 (first ss)))
      false)))
-
-(defn =select
-  "Checks data at only the positions referred to by expected. If a leaf
-   of expected is a function, then that function will be tested with the
-   value found in actual, otherwise equality will be used."
-  [expected & actuals]
-  (cond
-    (empty? actuals) true
-    (fn? expected) (every? expected actuals)
-    :otherwise
-    (loop [[[value path] & remaining :as paths] (paths/path-seq expected)]
-      (if (empty? paths)
-        true
-        (cond
-          (and (fn? value) (every? value (map (fn [actual] (if (empty? path) actual (get-in actual path))) actuals)))
-          (recur remaining)
-          (every? (partial = value) (map (fn [actual] (if (empty? path) actual (get-in actual path))) actuals))
-          (recur remaining)
-          :otherwise
-          false)))))
 
 (defn ^String bytes->hex
   "Converts a byte array into a hex encoded string."
@@ -1579,9 +1591,25 @@
     init should be a sequence of length N containing the first N terms.
   "
   [f init]
-  (map first (iterate (fn [v] (cons (apply f v) (butlast v))) (apply list init))))
+  (map first (iterate (fn [v] (conj (subvec v 1) (apply f v))) (into [] init))))
 
 (defmacro returning
   "A macro that computes value, executes body, then returns value."
   [value & body]
   `(let [v# ~value] ~@body v#))
+
+
+(defmacro with-temp-files
+  "Binds temporary files to each symbol in the symbols vector and
+   then executes body using those bindings. All bound temporary
+   files are deleted before returning with the return value of body."
+  [symbols & body]
+  `(apply
+     (^:once fn* ~symbols
+       (try
+         ~@body
+         (finally
+           (doseq [file# ~symbols]
+             (io/delete-file file# true)))))
+     (map #(File/createTempFile % ".temp") ~(mapv name symbols))))
+

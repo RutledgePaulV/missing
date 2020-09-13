@@ -1,4 +1,4 @@
-(defproject org.clojars.rutledgepaulv/missing "0.1.33"
+(defproject org.clojars.rutledgepaulv/missing "0.1.34-SNAPSHOT"
 
   :description
   "A utility library for Clojure of functions and macros that are frequently missed and recreated."

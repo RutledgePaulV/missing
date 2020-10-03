@@ -1626,6 +1626,6 @@
           (split-with (complement catch?) body)]
       `(try
          (try ~@inner-body
-              (catch Exception e#
+              (catch Throwable e#
                 (throw (or (stack/root-cause e#) e#))))
          ~@remainder))))

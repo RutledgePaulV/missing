@@ -7,7 +7,8 @@
             [clojure.data :as data]
             [clojure.pprint :as pprint]
             [missing.cwm :as cwm]
-            [clojure.walk :as walk])
+            [clojure.walk :as walk]
+            [clojure.stacktrace :as stack])
   (:import (java.util.concurrent TimeUnit)
            (java.util EnumSet UUID Comparator Properties Base64)
            (java.time Duration)
@@ -1598,7 +1599,6 @@
   [value & body]
   `(let [v# ~value] ~@body v#))
 
-
 (defmacro with-temp-files
   "Binds temporary files to each symbol in the symbols vector and
    then executes body using those bindings. All bound temporary
@@ -1613,3 +1613,19 @@
              (io/delete-file file# true)))))
      (map #(File/createTempFile % ".temp") ~(mapv name symbols))))
 
+(defmacro try-root
+  "Used just like the special form try, except pulls out the root
+   cause and catches on that instead of whatever exception might
+   wrap it. Useful for catching exceptions surrounding futures and
+   the like."
+  [& body]
+  (letfn [(catch? [form]
+            (and (or (seq? form) (list? form))
+                 (= 'catch (first form))))]
+    (let [[inner-body remainder]
+          (split-with (complement catch?) body)]
+      `(try
+         (try ~@inner-body
+              (catch Exception e#
+                (throw (or (stack/root-cause e#) e#))))
+         ~@remainder))))

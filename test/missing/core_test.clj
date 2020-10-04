@@ -4,7 +4,8 @@
             [clojure.set :as sets]
             [clojure.string :as strings])
   (:import (java.time Duration)
-           (java.util Arrays)))
+           (java.util Arrays)
+           [clojure.lang ExceptionInfo]))
 
 (def invokes (atom []))
 (def capture (fn [x] (swap! invokes conj x) x))
@@ -414,7 +415,7 @@
   (let [v (letp [a (+ 1 2 3)
                  b (if (even? a) (preempt 4) 5)
                  c (capture b)]
-            c)]
+                c)]
     (is (= v 4))
     (is (empty? @invokes))))
 
@@ -631,3 +632,42 @@
 
 (deftest get-jar-version-test
   (is (not (strings/blank? (get-jar-version 'org.clojars.rutledgepaulv/missing)))))
+
+(deftest try-root-test
+  (testing "works without containers."
+    (let [state  (atom false)
+          result (try-root
+                   (throw (IllegalAccessException. "Test"))
+                   (catch IllegalAccessException e e)
+                   (finally (swap! state not)))]
+      (is (instance? IllegalAccessException result))
+      (is (true? @state))))
+  (testing "works without catches."
+    (let [state  (atom false)
+          result (try-root :value (finally (swap! state not)))]
+      (is (= :value result))
+      (is (true? @state))))
+  (testing "catches on root exception, not wrapped exception."
+    (let [state  (atom false)
+          result (try-root
+                   @(future (throw (IllegalAccessException. "Test")))
+                   (catch IllegalAccessException e e)
+                   (finally (swap! state not)))]
+      (is (instance? IllegalAccessException result))
+      (is (true? @state))))
+  (testing "multiple cases."
+    (let [state (atom false)
+          fun   (fn [kind]
+                  (try-root
+                    @(future (throw (case kind
+                                      :ex-info (ex-info "Test" {})
+                                      :illegal (IllegalAccessException.))))
+                    (catch IllegalAccessException e :illegal)
+                    (catch ExceptionInfo e :ex-info)
+                    (finally (swap! state not))))]
+      (is (= :illegal (fun :illegal)))
+      (is (true? @state))
+      (reset! state false)
+      (is (= :ex-info (fun :ex-info)))
+      (is (true? @state)))))
+

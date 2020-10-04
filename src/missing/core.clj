@@ -1619,13 +1619,18 @@
    wrap it. Useful for catching exceptions surrounding futures and
    the like."
   [& body]
-  (letfn [(catch? [form]
-            (and (or (seq? form) (list? form))
-                 (= 'catch (first form))))]
+  (letfn [(form? [form]
+            (and (or (seq? form) (list? form)) (symbol? (first form))))
+          (catch-form? [form]
+            (and (form? form) (= 'catch (first form))))
+          (finally-form? [form]
+            (and (form? form) (= 'finally (first form))))
+          (tail? [form]
+            (or (catch-form? form) (finally-form? form)))]
     (let [[inner-body remainder]
-          (split-with (complement catch?) body)]
+          (split-with (complement tail?) body)]
       `(try
          (try ~@inner-body
               (catch Throwable e#
-                (throw (or (stack/root-cause e#) e#))))
+                (throw (stack/root-cause e#))))
          ~@remainder))))

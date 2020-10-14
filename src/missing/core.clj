@@ -9,7 +9,7 @@
             [missing.cwm :as cwm]
             [clojure.walk :as walk]
             [clojure.stacktrace :as stack])
-  (:import (java.util.concurrent TimeUnit ConcurrentHashMap Semaphore)
+  (:import (java.util.concurrent TimeUnit ConcurrentHashMap)
            (java.util EnumSet UUID Comparator Properties Base64)
            (java.time Duration)
            (java.nio.file FileSystems)

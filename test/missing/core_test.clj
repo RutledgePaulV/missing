@@ -671,3 +671,30 @@
       (is (= :ex-info (fun :ex-info)))
       (is (true? @state)))))
 
+
+(deftest weakly-memoize-test
+
+  (testing "Strongly referenced return values are retained."
+    (let [generator  (weakly-memoize (fn [] (Object.)))
+          references (vec (repeatedly 1000 generator))]
+      (is (reduce (fn [agg x] (if (identical? agg x) x (reduced false))) references))))
+
+  (testing "cache-key-fn works"
+    (let [generator (weakly-memoize (fn [& args] (Object.)) #(reduce + %1))
+          one       (generator 1 2 3)
+          two       (generator 6)]
+      (is (identical? one two))))
+
+  (testing "I dont run out of memory when not retaining references."
+    (letfn [(items [memoizer]
+              (let [generator (memoizer (fn [_] (byte-array 100000000)))]
+                (repeatedly 200 (fn [] (generator (rand-int 1000000))))))]
+      (try
+        (doseq [item (items memoize)]
+          (is (= 100000000 (alength item))))
+        (is false "Should have failed.")
+        (catch OutOfMemoryError error
+          (is true "Exceeded available memory.")))
+
+      (doseq [item (items weakly-memoize)]
+        (is (= 100000000 (alength item)))))))

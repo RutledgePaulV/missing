@@ -9,13 +9,15 @@
             [missing.cwm :as cwm]
             [clojure.walk :as walk]
             [clojure.stacktrace :as stack])
-  (:import (java.util.concurrent TimeUnit)
+  (:import (java.util.concurrent TimeUnit ConcurrentHashMap Semaphore)
            (java.util EnumSet UUID Comparator Properties Base64)
            (java.time Duration)
            (java.nio.file FileSystems)
            (java.io File)
            (java.security MessageDigest)
-           (clojure.lang LongRange Range Var MultiFn Reversible MapEntry)))
+           (clojure.lang LongRange Range Var MultiFn Reversible MapEntry IMeta)
+           [java.lang.ref ReferenceQueue WeakReference]
+           [java.util.function Function]))
 
 (defn get-field
   "Access an object field, even if private or protected."
@@ -1634,3 +1636,36 @@
               (catch Throwable e#
                 (throw (stack/root-cause e#))))
          ~@remainder))))
+
+
+(defn weakly-memoize
+  "Returns a memoized version of f with weak retention of return values.
+   As long as a strong reference to the return value remains, further
+   invocations with the same cache key will return the cached value.
+   However, once no strong references to the value are retained the
+   value will become a candidate for garbage collection and a future
+   invocation with the same arguments will necessarily recompute f.
+
+   The cache key defaults to the arguments provided but a custom
+   cache-key-fn may be supplied instead. A cache-key-fn is a function
+   that will be invoked with the sequence of arguments and should return
+   the desired cache key.
+   "
+  ([f] (weakly-memoize f identity))
+  ([f cache-key-fn]
+   (let [ref-queue (ReferenceQueue.)
+         container (ConcurrentHashMap.)]
+     (fn [& args]
+       (let [cache-key (cache-key-fn (vec args))
+             generator (reify Function
+                         (apply [this cache-key]
+                           (loop []
+                             (when-some [item (.poll ref-queue)]
+                               (.remove container (some-> item meta :key))
+                               (.clear item)
+                               (recur)))
+                           (proxy [WeakReference IMeta]
+                                  [(apply f args) ref-queue]
+                             (meta [] {:key cache-key}))))
+             ref       (.computeIfAbsent container cache-key generator)]
+         (.get ^WeakReference ref))))))

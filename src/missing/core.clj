@@ -1659,12 +1659,19 @@
        (let [cache-key (cache-key-fn (vec args))
              generator (reify Function
                          (apply [this cache-key]
-                           (loop []
-                             (when-some [item (.poll ref-queue)]
-                               (.remove container (some-> item meta :key))
-                               (recur)))
-                           (proxy [WeakReference IMeta]
-                                  [(apply f args) ref-queue]
-                             (meta [] {:key cache-key}))))
+                           (let [x (apply f args)]
+                             (loop []
+                               (when-some [item (.poll ref-queue)]
+                                 (.remove container (some-> item meta :key))
+                                 (recur)))
+                             (proxy [WeakReference IMeta] [x ref-queue]
+                               (meta [] {:key cache-key})))))
              ref       (.computeIfAbsent container cache-key generator)]
          (.get ^WeakReference ref))))))
+
+
+(defmacro defweakmemo
+  "Define a function with a weakly memoized implementation."
+  [& defnargs]
+  `(doto (defn ~@defnargs)
+     (alter-var-root #(with-meta (weakly-memoize %1) (meta %1)))))

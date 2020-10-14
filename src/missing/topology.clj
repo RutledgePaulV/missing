@@ -4,17 +4,9 @@
   (:require [missing.core :as miss]
             [clojure.set :as sets]))
 
-(defn normalize
-  "Given an adjacency with potentially missing entries, populate
-   the entries based on the appearance of other nodes on the right
-   side of an edge. Tags the result with metadata so it doesn't
-   recompute for repeat invocations."
-  [g]
-  (if (some-> g meta ::normalized)
-    g
-    (letfn [(nodes [g] (into (set (keys g)) (mapcat identity) (vals g)))]
-      (let [result (reduce (fn [agg next] (update agg next (fnil set #{}))) g (nodes g))]
-        (vary-meta result (fnil merge {}) {::normalized true})))))
+(miss/defweakmemo normalize [g]
+  (letfn [(nodes [g] (into (set (keys g)) (mapcat identity) (vals g)))]
+    (reduce (fn [agg next] (update agg next (fnil set #{}))) g (nodes g))))
 
 (defmacro defgn
   "Like defn but handles normalizing any 'g or g{digit}' arguments first."

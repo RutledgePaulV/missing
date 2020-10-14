@@ -1662,7 +1662,6 @@
                            (loop []
                              (when-some [item (.poll ref-queue)]
                                (.remove container (some-> item meta :key))
-                               (.clear item)
                                (recur)))
                            (proxy [WeakReference IMeta]
                                   [(apply f args) ref-queue]

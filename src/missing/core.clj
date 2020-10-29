@@ -15,7 +15,7 @@
            (java.nio.file FileSystems)
            (java.io File)
            (java.security MessageDigest)
-           (clojure.lang LongRange Range Var MultiFn Reversible MapEntry IMeta)
+           (clojure.lang LongRange Range Var MultiFn Reversible MapEntry IMeta ITransientCollection)
            [java.lang.ref ReferenceQueue WeakReference]
            [java.util.function Function]))
 
@@ -406,6 +406,40 @@
   "Index the items of a collection into a map by a key"
   [key-fn coll]
   (persistent! (reduce #(assoc! %1 (key-fn %2) %2) (transient {}) coll)))
+
+(defn indexes-by
+  "Index coll by multiple keys to create a nested lookup path."
+  [key-fns coll]
+  (let [path-fn (apply juxt key-fns)]
+    (reduce #(assoc-in %1 (path-fn %2) %2) {} coll)))
+
+(defn cascade-by
+  "Group coll using all prefix lists of key-fns. The
+   result being a map with which you can look up groups
+   to any depth."
+  [key-fns coll]
+  (loop [key-fns (vec key-fns) aggregate {[] coll}]
+    (if (empty? key-fns)
+      aggregate
+      (let [path-fn (apply juxt key-fns)]
+        (recur (subvec key-fns 0 (dec (count key-fns)))
+               (merge aggregate (group-by path-fn coll)))))))
+
+(defn trie-by
+  "Returns a trie structure as a map. f is a function
+   of an element in coll that returns an ordered sequence
+   by which the element will be positioned in the trie."
+  [f coll]
+  (cascade-by
+    (->> (range (count (f (max-key (comp count f) coll))))
+         (mapv (fn [i] #(nth % i nil))))
+    coll))
+
+(defn trie
+  "Returns a trie structure as a map. coll must be a collection
+   of sequentials."
+  [coll]
+  (trie-by identity coll))
 
 (def ^:dynamic *preempt*)
 

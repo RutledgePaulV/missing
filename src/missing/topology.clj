@@ -66,9 +66,7 @@
                (update m n1 (fnil conj #{}) n2)
                m))]
      (let [init (zipmap nodes (repeat #{}))]
-       (with-meta
-         (reduce reduction init (set edges))
-         {::normalized true})))))
+       (normalize (reduce reduction init (set edges)))))))
 
 (defgn walk?
   "Check if the given walk is valid for the graph."
@@ -287,7 +285,7 @@
     (loop [graph* g]
       (let [expanded (reduce expand-entry graph* graph*)]
         (if (= expanded graph*)
-          (with-meta expanded {::normalized true})
+          (normalize expanded)
           (recur expanded))))))
 
 (defgn connected?

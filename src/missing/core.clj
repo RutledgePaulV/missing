@@ -416,12 +416,9 @@
 (defn prefixes
   "Returns all prefixes of coll."
   [coll]
-  (loop [prefixes [[]] coll (vec coll)]
-    (if (empty? coll)
-      prefixes
-      (recur
-        (conj prefixes (conj (peek prefixes) (first coll)))
-        (subvec coll 1)))))
+  (let [v (vec coll)]
+    (for [i (range (inc (count v)))]
+      (subvec v 0 i))))
 
 (def ^:dynamic *preempt*)
 
@@ -1404,12 +1401,6 @@
 (defn basename
   "Get the filename (without extension) from a filename"
   [filename] (second (re-find #"(.+?)(\.[^.]*$|$)" filename)))
-
-(defn ^:deprecated get-filename
-  "Get the filename (without extension) from a filename"
-  [filename]
-  (println "missing.core/get-filename is deprecated. Use missing.core/basename instead.")
-  (basename filename))
 
 (defn subsets
   "Returns all the subsets of a collection"

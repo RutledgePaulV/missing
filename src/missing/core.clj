@@ -413,33 +413,15 @@
   (let [path-fn (apply juxt key-fns)]
     (reduce #(assoc-in %1 (path-fn %2) %2) {} coll)))
 
-(defn cascade-by
-  "Group coll using all prefix lists of key-fns. The
-   result being a map with which you can look up groups
-   to any depth."
-  [key-fns coll]
-  (loop [key-fns (vec key-fns) aggregate {[] coll}]
-    (if (empty? key-fns)
-      aggregate
-      (let [path-fn (apply juxt key-fns)]
-        (recur (subvec key-fns 0 (dec (count key-fns)))
-               (merge aggregate (group-by path-fn coll)))))))
-
-(defn trie-by
-  "Returns a trie structure as a map. f is a function
-   of an element in coll that returns an ordered sequence
-   by which the element will be positioned in the trie."
-  [f coll]
-  (cascade-by
-    (->> (range (count (f (max-key (comp count f) coll))))
-         (mapv (fn [i] #(nth % i nil))))
-    coll))
-
-(defn trie
-  "Returns a trie structure as a map. coll must be a collection
-   of sequentials."
+(defn prefixes
+  "Returns all prefixes of coll."
   [coll]
-  (trie-by identity coll))
+  (loop [prefixes [[]] coll (vec coll)]
+    (if (empty? coll)
+      prefixes
+      (recur
+        (conj prefixes (conj (peek prefixes) (first coll)))
+        (subvec coll 1)))))
 
 (def ^:dynamic *preempt*)
 
@@ -1449,19 +1431,62 @@
   "Is m1 a supermap of m2?"
   [m1 m2] (sets/superset? (set (seq m1)) (set (seq m2))))
 
+(defn update!
+  "Like clojure.core/update but for transients."
+  ([m k f]
+   (assoc! m k (f (get m k))))
+  ([m k f x]
+   (assoc! m k (f (get m k) x)))
+  ([m k f x y]
+   (assoc! m k (f (get m k) x y)))
+  ([m k f x y z]
+   (assoc! m k (f (get m k) x y z)))
+  ([m k f x y z & more]
+   (assoc! m k (apply f (get m k) x y z more))))
+
 (defn indexcat-by
   "Like index-by except f is expected to return a sequence of keys
   that the element should be indexed by."
   [f coll]
-  (into {} (mapcat #(map map-entry (f %) (repeat %))) coll))
+  (persistent!
+    (reduce
+      (fn [m x]
+        (let [ks (f x)]
+          (reduce (fn [m' k] (assoc! m' k x)) m ks)))
+      (transient {})
+      coll)))
 
 (defn groupcat-by
   "Like group-by except f is expected to return a sequence of keys
   that the element should be bucketed by."
   [f coll]
-  (->> coll
-       (mapcat #(map vector (f %) (repeat %)))
-       (reduce (fn [m [k v]] (update m k (fnil conj []) v)) {})))
+  (persistent!
+    (reduce
+      (fn [m x]
+        (let [ks (f x)]
+          (reduce (fn [m' k] (update! m' k (fnil conj []) x)) m ks)))
+      (transient {})
+      coll)))
+
+(defn trie-by
+  "Returns a trie structure as a map. f is a function
+   of an element in coll that returns an ordered sequence
+   by which the element will be positioned in the trie."
+  [f coll]
+  (groupcat-by (comp prefixes f) coll))
+
+(defn cascade-by
+  "Group coll using all prefix lists of key-fns. The
+   result being a map with which you can look up groups
+   to any depth."
+  [key-fns coll]
+  (trie-by (apply juxt key-fns) coll))
+
+(defn trie
+  "Returns a trie structure as a map. coll must be a collection
+   of sequentials."
+  [coll]
+  (trie-by identity coll))
 
 (defn group-by-labels
   "Groups elements in coll according to all of

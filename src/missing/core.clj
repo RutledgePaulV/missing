@@ -1695,11 +1695,11 @@
   [bindings & body]
   `(->> ~(into [::continue] (map second (partition 2 bindings)))
         (iterate
-          (fn [~(into [(gensym)] (map first (partition 2 bindings)))]
-            (let [result# (do ~@(walk/postwalk-replace {'recur `(partial vector ::continue)} body))]
-              (if (and (vector? result#) (= ::continue (first result#))) result# [::stop result#]))))
+          (fn [~(into [(gensym)] (map first) (partition 2 bindings))]
+            (let [result# (do ~@(walk/postwalk-replace {'recur `(partial list ::continue)} body))]
+              (if (and (seq? result#) (= ::continue (first result#))) result# (list ::stop result#)))))
         (take-upto #(= ::stop (first %)))
-        (map #(subvec % 1))))
+        (map rest)))
 
 
 (defn weakly-memoize

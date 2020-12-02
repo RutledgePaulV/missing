@@ -1687,6 +1687,20 @@
                 (throw (stack/root-cause e#))))
          ~@remainder))))
 
+(defmacro iterloop
+  "Used just like loop/recur, but returns a lazy sequence of the bindings from each iteration.
+   The last item in the generated sequence will be a vector of one argument. Does not support
+   nested recur constructs because I am lazy. Recommend that you maintain your accumulator in
+   the first register so that the return value aligns."
+  [bindings & body]
+  `(->> ~(into [::continue] (map second (partition 2 bindings)))
+        (iterate
+          (fn [~(into [(gensym)] (map first (partition 2 bindings)))]
+            (let [result# (do ~@(walk/postwalk-replace {'recur `(partial vector ::continue)} body))]
+              (if (and (vector? result#) (= ::continue (first result#))) result# [::stop result#]))))
+        (take-upto #(= ::stop (first %)))
+        (map #(subvec % 1))))
+
 
 (defn weakly-memoize
   "Returns a memoized version of f with weak retention of return values.

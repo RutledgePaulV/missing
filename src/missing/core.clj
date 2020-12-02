@@ -201,18 +201,6 @@
   [f form]
   (walk/postwalk #(if (map? %) (map-vals f %) %) form))
 
-(defn stringify-key
-  "Convert a keyword to a string, preserve namespaces."
-  [k]
-  (if (qualified-keyword? k)
-    (str (namespace k) "/" (name k))
-    (name k)))
-
-(defn stringify-keys
-  "Convert all keys in all maps within form into a string, preserves namespaces."
-  [form]
-  (walk-keys stringify-key form))
-
 (defn map-entries
   "Transform the entries of a map"
   [f m]

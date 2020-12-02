@@ -1689,9 +1689,9 @@
 
 (defmacro iterloop
   "Used just like loop/recur, but returns a lazy sequence of the bindings from each iteration.
-   The last item in the generated sequence will be a vector of one argument. Does not support
-   nested recur constructs because I am lazy. Recommend that you maintain your accumulator in
-   the first register so that the return value aligns."
+   The last tuple in the generated sequence will contain only one value (your return value).
+   Does not support nested recur constructs because I am lazy. Recommend that you maintain
+   your accumulator in the first register so that the return value aligns."
   [bindings & body]
   `(->> ~(into [::continue] (map second (partition 2 bindings)))
         (iterate

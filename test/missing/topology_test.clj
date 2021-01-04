@@ -1,6 +1,7 @@
 (ns missing.topology-test
   (:require [missing.topology :refer :all]
-            [clojure.test :refer :all])
+            [clojure.test :refer :all]
+            [clojure.set :as sets])
   (:refer-clojure :exclude (empty complement)))
 
 (deftest normalization-test
@@ -231,3 +232,25 @@
     (is (= {:unreferenced               #{:referenced-by-unreferenced},
             :referenced-by-unreferenced #{}}
            (transitive-difference drop keep)))))
+
+(deftest bridges-test
+  (let [g {:a #{:c :b},
+           :b #{:e :c :f :a},
+           :c #{:g :h :b :d :a},
+           :d #{:e :c :f},
+           :e #{:b :d},
+           :f #{:g :b :d},
+           :g #{:c :f},
+           :h #{:c :j :i},
+           :i #{:k :j :h},
+           :j #{:l :h :i},
+           :k #{:m :l :i},
+           :l #{:k :j},
+           :m #{:o :n :k},
+           :n #{:o :m},
+           :o #{:n :m}}]
+    (is (= #{[:k :m] [:c :h] [:h :c] [:m :k]} (bridges g)))
+    (doseq [bridge (bridges g)]
+      (is (bridge? g bridge)))
+    (doseq [edge (sets/difference (edges g) (bridges g))]
+      (is (not (bridge? g edge))))))

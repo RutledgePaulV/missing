@@ -1727,3 +1727,12 @@
   [& defnargs]
   `(doto (defn ~@defnargs)
      (alter-var-root #(with-meta (weakly-memoize %1) (meta %1)))))
+
+(defn cartesian-product
+  ([] [])
+  ([xs] xs)
+  ([xs ys]
+   (mapcat (fn [x] (map (fn [y] (list x y)) ys)) xs))
+  ([xs ys & more]
+   (mapcat (fn [x] (map (fn [z] (cons x z)) (apply cartesian-product (cons ys more)))) xs)))
+

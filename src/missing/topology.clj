@@ -375,9 +375,9 @@
     (reduce-kv
       (fn [agg k _]
         (union agg
-          (miss/if-seq [extent (get g-trans k)]
-            (filterg (conj extent k) g-union)
-            {})))
+               (miss/if-seq [extent (get g-trans k)]
+                 (filterg (conj extent k) g-union)
+                 {})))
       {} (intersection g1 g2))))
 
 (defgn transitive-union
@@ -398,6 +398,48 @@
     (union
       (difference g1 transitive-inter)
       (difference g2 transitive-inter))))
+
+
+(defgn bridges
+  "Returns the edges whose removal would alter the transitive closure
+   of the graph (increase the number of connected components)."
+  [g]
+  (loop [queue       [(first (nodes g))]
+         assignments {}
+         bridges     #{}]
+    (if (empty? queue)
+      bridges
+      (let [node      (peek queue)
+            parent    (peek (pop queue))
+            index     (or (get assignments node) (count assignments))
+            neighbors (disj (neighbors g node) parent)
+            unvisited (remove assignments neighbors)]
+        (if (empty? unvisited)
+          (let [final-index (apply min (cons index (vals (select-keys assignments neighbors))))]
+            (if (some? parent)
+              (recur
+                (pop queue)
+                (assoc assignments node final-index)
+                (if (<= final-index (get assignments parent))
+                  bridges
+                  (cond-> bridges
+                    (contains? (get g parent) node)
+                    (conj [parent node])
+                    (contains? (get g node) parent)
+                    (conj [node parent]))))
+              (recur
+                (pop queue)
+                (assoc assignments node final-index)
+                bridges)))
+          (recur
+            (conj queue (rand-nth unvisited))
+            (assoc assignments node index)
+            bridges))))))
+
+(defgn bridge?
+  "Is the given edge a bridge of the graph g?"
+  [g edge]
+  (not= (transitive-closure g) (transitive-closure (remove-edge g edge))))
 
 (defgn shortest-paths
   "Uses Floyd-Warshall to returns a map of

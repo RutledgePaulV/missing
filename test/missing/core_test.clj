@@ -2,10 +2,13 @@
   (:require [clojure.test :refer :all :exclude (testing)]
             [missing.core :refer :all]
             [clojure.set :as sets]
-            [clojure.string :as strings])
+            [clojure.string :as strings]
+            [clojure.java.io :as io])
   (:import (java.time Duration)
            (java.util Arrays)
-           [clojure.lang ExceptionInfo]))
+           [clojure.lang ExceptionInfo]
+           [java.nio.file Files]
+           [java.nio.file.attribute FileAttribute]))
 
 (def invokes (atom []))
 (def capture (fn [x] (swap! invokes conj x) x))
@@ -698,3 +701,48 @@
 
       (doseq [item (items weakly-memoize)]
         (is (= 100000000 (alength item)))))))
+
+(deftest delete-file-test
+  (let [attrs    (into-array FileAttribute [])
+        temp     (.toFile (Files/createTempDirectory "missing" attrs))
+        segments ["one" "two" "three" "four" "five"]]
+    (doseq [path (prefixes segments)]
+      (let [dir  (apply io/file temp path)
+            file (io/file dir "temp.txt")]
+        (io/make-parents file)
+        (spit file "stuff.txt")))
+    (delete-file temp)
+    (is (every? #(not (.exists %)) (file-seq temp)))))
+
+(deftest dowork-test
+  (let [threads (atom {})]
+    (dowork [x [(range 10) 2]]
+      (swap! threads assoc x (.getId (Thread/currentThread))))
+    (is (= 2 (count (distinct (vals (deref threads)))))))
+
+  (let [threads (atom {})]
+    (dowork [x [(range 10) 2]
+             y [(range 10) 2]]
+      (swap! threads assoc [x y] (.getId (Thread/currentThread))))
+    (is (= 20 (count (distinct (vals (deref threads))))))))
+
+(deftest iterloop-test
+  (let [actual
+        (iterloop [acc 0 values (range 10)]
+          (if (seq values)
+            (recur (+ acc (first values)) (rest values))
+            acc))
+        expected
+        '((0 (0 1 2 3 4 5 6 7 8 9))
+          (0 (1 2 3 4 5 6 7 8 9))
+          (1 (2 3 4 5 6 7 8 9))
+          (3 (3 4 5 6 7 8 9))
+          (6 (4 5 6 7 8 9))
+          (10 (5 6 7 8 9))
+          (15 (6 7 8 9))
+          (21 (7 8 9))
+          (28 (8 9))
+          (36 (9))
+          (45 ())
+          (45))]
+    (is (= expected actual))))

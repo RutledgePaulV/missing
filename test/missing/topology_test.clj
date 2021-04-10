@@ -254,3 +254,11 @@
       (is (bridge? g bridge)))
     (doseq [edge (sets/difference (edges g) (bridges g))]
       (is (not (bridge? g edge))))))
+
+(deftest self-looped-test
+  (is (= {:c #{:c :d}, :b #{:b}, :d #{:d}, :a #{:b :a}}
+         (self-looped {:a [:b] :c [:d]}))))
+
+(deftest self-loops-test
+  (is (= #{:c :b :d} (self-loops {:c #{:c :d}, :b #{:b}, :d #{:d}, :a #{:b}})))
+  (is (= (nodes {:a [:b] :c [:d]}) (self-loops (self-looped {:a [:b] :c [:d]})))))

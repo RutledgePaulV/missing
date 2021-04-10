@@ -9,7 +9,7 @@
             [missing.cwm :as cwm]
             [clojure.walk :as walk]
             [clojure.stacktrace :as stack])
-  (:import (java.util.concurrent TimeUnit ConcurrentHashMap)
+  (:import (java.util.concurrent TimeUnit ConcurrentHashMap Executors CountDownLatch ThreadPoolExecutor)
            (java.util EnumSet UUID Comparator Properties Base64)
            (java.time Duration)
            (java.nio.file FileSystems)
@@ -1736,3 +1736,47 @@
   ([xs ys & more]
    (mapcat (fn [x] (map (fn [z] (cons x z)) (apply cartesian-product (cons ys more)))) xs)))
 
+
+(defmacro dowork
+  "Like clojure.core/doseq but with configurable levels of parallelism for each 'loop'.
+   Right hand side of bindings should be tuples of [collection parallelism] and left
+   hand side of bindings can be any binding target (symbol or destructuring). Returns
+   nil after all the work has been completed."
+  [bindings & body]
+  (if (empty? bindings)
+    `(do ~@body nil)
+    (let [bind (take 2 bindings)]
+      `(let [[value# workers#] ~(second bind)
+             num-values# (count value#)]
+         (if (and (< 1 workers#) (< 1 num-values#))
+           (let [thread-pool# (Executors/newFixedThreadPool workers#)
+                 latch#       (CountDownLatch. num-values#)]
+             (doseq [~(first bind) value#]
+               (let [thunk#
+                     (bound-fn*
+                       (^:once fn* []
+                         (try
+                           (dowork ~(vec (drop 2 bindings)) ~@body)
+                           (finally
+                             (.countDown latch#)))))]
+                 (.submit ^ThreadPoolExecutor thread-pool# ^Runnable thunk#)))
+             (.await latch#)
+             (.shutdownNow thread-pool#)
+             nil)
+           (doseq [~(first bind) value#]
+             (dowork ~(vec (drop 2 bindings)) ~@body)))))))
+
+
+(defn delete-file
+  "Deletes the file whether it's a file or a directory."
+  [file]
+  (loop [[^File head & remainder :as queue] [(io/file file)]]
+    (if (.isDirectory head)
+      (let [children (vec (.listFiles head))]
+        (if (empty? children)
+          (do (io/delete-file head true)
+              (when (seq remainder) (recur remainder)))
+          (recur (into children queue))))
+      (do (io/delete-file head true)
+          (when (seq remainder)
+            (recur remainder))))))

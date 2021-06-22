@@ -1766,6 +1766,28 @@
            (doseq [~(first bind) value#]
              (dowork ~(vec (drop 2 bindings)) ~@body)))))))
 
+(defn maps->rows
+  "Converts a sequence of maps into a sequence of vectors with a header."
+  ([coll] (maps->rows coll false))
+  ([coll all-keys?]
+   (cond
+     (empty? coll)
+     []
+     (map? coll)
+     (let [headers (-> coll keys sort vec)]
+       [(mapv name headers) (mapv coll headers)])
+     (iterable? coll)
+     (let [headers (if all-keys?
+                     (vec
+                       (sort
+                         (reduce
+                           (fn [keyset m]
+                             (sets/union keyset (set (keys m))))
+                           #{}
+                           coll)))
+                     (-> coll first keys sort vec))]
+       (lazy-cat [(mapv name headers)] (map #(mapv % headers) coll))))))
+
 
 (defn delete-file
   "Deletes the file whether it's a file or a directory."

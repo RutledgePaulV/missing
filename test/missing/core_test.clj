@@ -746,3 +746,13 @@
           (45 ())
           (45))]
     (is (= expected actual))))
+
+(deftest maps->rows-test
+  (is (= [] (maps->rows {})))
+  (is (= [] (maps->rows [])))
+  (is (= [] (maps->rows [] true)))
+  (is (= [] (maps->rows [] false)))
+  (is (= [["a" "b"] [1 2]] (maps->rows {"a" 1 "b" 2})))
+  (is (= [["a" "b"] [1 2] [3 4]] (maps->rows [{"a" 1 "b" 2} {"a" 3 "b" 4}])))
+  (is (= [["a" "b"] [1 2] [3 4]] (maps->rows [{"a" 1 "b" 2} {"a" 3 "b" 4 "c" 5}])))
+  (is (= [["a" "b" "c"] [1 2 nil] [3 4 5]] (maps->rows [{"a" 1 "b" 2} {"a" 3 "b" 4 "c" 5}] true))))
